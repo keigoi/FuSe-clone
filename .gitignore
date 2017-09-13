@@ -1,0 +1,35 @@
+*.annot
+*.cmo
+*.cma
+*.cmi
+*.a
+*.o
+*.cmx
+*.cmxs
+*.cmxa
+
+# emacs
+\#*
+\.\#*
+
+FuSe.html
+
+# executables
+examples/*.opt
+decoder/rosetta
+examples/Tadder
+examples/Tast
+examples/Tchoices
+examples/Tcounter
+examples/Techo
+examples/Tlist
+examples/Tlock
+examples/Tmath
+examples/Toverlap
+examples/Tpapermath
+examples/TpapermathMonad
+examples/TrecursiveEcho
+examples/Tsubtyping
+examples/Ttree
+examples/Tunused
+examples/Tweird
