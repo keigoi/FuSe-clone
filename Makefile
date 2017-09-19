@@ -5,7 +5,7 @@ BASE = $(NAME)-$(VERSION)
 
 NULL =
 
-DIRS = src decoder examples html docs
+DIRS = src decoder html docs bench
 
 ARCHIVE = \
   Makefile \

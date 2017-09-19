@@ -1,0 +1,11 @@
+FLG -rectypes
+PKG threads core
+
+S src
+S examples
+S bench
+
+B src
+B examples
+B bench
+B +threads

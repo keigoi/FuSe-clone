@@ -7,6 +7,7 @@
 *.cmx
 *.cmxs
 *.cmxa
+*.cmt
 
 # emacs
 \#*
@@ -33,3 +34,6 @@ examples/Tsubtyping
 examples/Ttree
 examples/Tunused
 examples/Tweird
+bench/*.opt
+bench/bench
+bench/bench_monad
