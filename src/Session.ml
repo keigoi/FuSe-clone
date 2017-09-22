@@ -15,4 +15,4 @@
 (*                                                                      *)
 (* Copyright 2015-2017 Luca Padovani                                    *)
 
-include SessionBase.Make(SessionBase.UnsafeFlag)
+include SessionBase.Make(SessionBase.UnsafeChannel)(SessionBase.UnsafeFlag)

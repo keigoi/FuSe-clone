@@ -8,12 +8,21 @@
 *.cmxs
 *.cmxa
 *.cmt
+*.inlining.org
 
 # emacs
 \#*
 \.\#*
 
 FuSe.html
+html/*.html
+html/style.css
+docs/FuSe.pdf
+decoder/lexer.ml
+decoder/parser.ml
+decoder/parser.mli
+decoder/parser.output
+bench/.ipynb_checkpoints
 
 # executables
 examples/*.opt

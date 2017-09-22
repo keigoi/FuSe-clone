@@ -17,17 +17,80 @@
 
 exception InvalidEndpoint
 
-module UnsafeChannel : sig
+module type UNSAFE_CHANNEL =
+sig
   type t
   val create     : unit -> t
   val send       : 'a -> t -> unit
   val receive    : t -> 'a
-end = struct
+  val flip       : t -> t
+end
+
+module UnsafeChannel : UNSAFE_CHANNEL
+= struct
   type t         = unit Event.channel
   let create     = Event.new_channel
   let send x ch  = Event.sync (Event.send ch (Obj.magic x))
   let receive ch = Obj.magic (Event.sync (Event.receive ch))
+  let flip ch    = ch
 end
+
+module BufferedUnsafeChannel : UNSAFE_CHANNEL
+= struct
+  module Aux = struct
+    module M = Mutex
+    module C = Condition
+    module Q = Queue
+  
+    type t = unit Q.t * M.t * C.t
+  
+    let create () : t = Q.create (), M.create (), C.create ()
+  
+    let send v (q,m,c) =
+      M.lock m;
+      Q.add (Obj.magic v) q;
+      C.signal c;
+      M.unlock m
+      
+  
+    let receive (q,m,c) =
+      M.lock m;
+      let rec loop () =
+        if Q.is_empty q then begin
+          C.wait c m;
+          loop ()
+        end else begin
+          Q.take q
+        end
+      in
+      let v = loop () in
+      M.unlock m;
+      Obj.magic v
+  end
+  type t = Aux.t * Aux.t
+  let create () = Aux.create (), Aux.create ()
+  let send v (_, oc) = Aux.send v oc
+  let receive (ic, _) = Aux.receive ic
+  let flip (ic,oc) = (oc, ic)
+end
+
+module PipeUnsafeChannel : UNSAFE_CHANNEL
+= struct
+  module Aux = struct
+    type t = in_channel * out_channel
+  
+    let create () : t = let fi, fo = Unix.pipe () in (Unix.in_channel_of_descr fi, Unix.out_channel_of_descr fo)
+  
+    let send v (_,oc) = output_value oc v; flush oc
+    let receive (ic,_) = input_value ic
+  end
+  type t = Aux.t * Aux.t
+  let create () = Aux.create (), Aux.create ()
+  let send v (_, oc) = Aux.send v oc
+  let receive (ic, _) = Aux.receive ic
+  let flip (ic,oc) = (oc, ic)
+end
+
 
 module type FLAG = sig
   type t
@@ -128,7 +191,7 @@ module type S = sig
     (** [select f ep] sends [f] to the peer endpoint of [ep], where it
   is used to compute the received message.  @return the endpoint [ep].
   @raise InvalidEndpoint if the endpoint [ep] is invalid. *)
-    val select : (('a, 'b) st -> 'm) -> 'm ot -> ('b, 'a) st
+    (* val select : (('a, 'b) st -> 'm) -> 'm ot -> ('b, 'a) st *)
   
     (** [select_true ep] selects the [True] branch of a choice.  @return
    the endpoint [ep] after the selection.  @raise InvalidEndpoint if the
@@ -144,7 +207,8 @@ module type S = sig
    input capability.  @return the endpoint [ep] injected through the
    selected tag.  @raise InvalidEndpoint if the endpoint [ep] is
    invalid.  *)
-    val branch : ([>] as 'm) it -> 'm
+    (* val branch : ([>] as 'm) it -> 'm *)
+    val branch : ([>`True of ('a, 'b) st | `False of ('c, 'd) st] as 'm) it -> 'm
   
     (** {2 Endpoint validity and identity} *)
   
@@ -227,7 +291,8 @@ module type S = sig
     (** [branch mtrue mfalse] accepts a boolean selection from the
     session endpoint and executes either [mtrue] or [mfalse]
     accordingly. *)
-    val branch  : ('t0, 't2, 'a) t -> ('t1, 't2, 'a) t -> (('t0, 't1) choice it, 't2, 'a) t
+    (* val branch  : ('t0, 't2, 'a) t -> ('t1, 't2, 'a) t -> (('t0, 't1) choice it, 't2, 'a) t *)
+    val branch  : (('b,'c) st, 't2, 'a) t -> (('d,'e)st, 't2, 'a) t -> ((('b,'c) st, ('d,'e) st) choice it, 't2, 'a) t
   
     (** [select_true] selects the [True] branch of a choice. *)
     val select_true : ((('b, 'a) st, ('d, 'c) st) choice ot, ('a, 'b) st, unit) t
@@ -237,7 +302,7 @@ module type S = sig
   end
 end  
 
-module Make(Flag:FLAG) : S = struct
+module Make(UnsafeChannel:UNSAFE_CHANNEL)(Flag:FLAG) : S = struct
   type _0
   type (+'a, -'b) st = { name     : string;
   		       channel  : UnsafeChannel.t;
@@ -263,7 +328,7 @@ module Make(Flag:FLAG) : S = struct
                   polarity = +1;
                   once = Flag.create () }
       and ep2 = { name = name ^ "⁻";
-                  channel = ch;
+                  channel = UnsafeChannel.flip ch;
                   polarity = -1;
                   once = Flag.create () }
       in (ep1, ep2)
@@ -297,10 +362,17 @@ module Make(Flag:FLAG) : S = struct
     (*** CHOICES ***)
     (***************)
   
-    let select f ep     = Flag.use ep.once; UnsafeChannel.send f ep.channel; fresh ep
-    let select_true ep  = select (fun x -> `True x) ep
-    let select_false ep = select (fun x -> `False x) ep
-    let branch ep       = Flag.use ep.once; (UnsafeChannel.receive ep.channel) (fresh ep)
+    (* let select f ep     = Flag.use ep.once; UnsafeChannel.send f ep.channel; fresh ep *)
+    (* let select_true ep  = select (fun x -> `True x) ep *)
+    (* let select_false ep = select (fun x -> `False x) ep *)
+    (* let branch ep       = Flag.use ep.once; (UnsafeChannel.receive ep.channel) (fresh ep) *)
+    let select_true ep  = send `True ep
+    let select_false ep = send `False ep
+    let branch ep       =
+      Flag.use ep.once;
+      match UnsafeChannel.receive ep.channel with
+      | `True -> `True(fresh ep)
+      | `False -> `False(fresh ep)
   
     (******************************)
     (*** SEQUENTIAL COMPOSITION ***)

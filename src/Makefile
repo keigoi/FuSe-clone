@@ -1,10 +1,10 @@
 
 NULL =
 
-SOURCES = SessionSig.mli SessionBase.ml Session.mli Service.mli Session.ml Service.ml
+SOURCES = SessionBase.ml Session.mli SessionIPC.ml Service.mli Session.ml Service.ml
 
 OCAMLC = ocamlfind ocamlc -w +A-20 -rectypes -thread -package core
-OCAMLOPT = ocamlfind ocamlopt -w +A-20 -rectypes -thread -package core
+OCAMLOPT = ocamlfind ocamlopt -O3 -inlining-report -w +A-20 -rectypes -thread -package core
 
 DEST = padovani@pianeta.di.unito.it:public_html/Software/FuSe/
 
