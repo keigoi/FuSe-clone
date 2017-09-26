@@ -32,7 +32,7 @@ init bench_ipc_monad
 
 init bench_ipc_so
 
-for i in `seq 0 100`;
+for i in `seq 0 999`;
 do
 single bench N
 single bench Z
@@ -51,10 +51,9 @@ single bench2 N
 single bench2_so S
 single bench2 NA
 single bench2_so A
-single bench_ipc_monad
 
 single bench_ipc_so
-
+#./intelpowergadget
 echo $i
 done
 
